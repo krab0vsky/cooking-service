@@ -1,0 +1,341 @@
+<a href="/recipes" class="btn-back">
+    <i class="bi bi-arrow-left"></i> Назад к рецептам
+</a>
+
+<div class="form-header">
+    <h1> Создать новый рецепт</h1>
+    <p class="form-subtitle">Поделитесь вашим кулинарным творением с миром</p>
+</div>
+
+<div class="recipe-form-container">
+    {{!-- Верхняя панель ошибок --}}
+    <div id="formErrors" class="alert alert-danger d-none" role="alert"></div>
+
+    <form id="recipeForm" action="/recipes/create" method="POST" enctype="multipart/form-data" style="max-width: 800px;">
+        
+        {{!-- Основные поля --}}
+        <div class="form-section">
+            <h3 class="section-title"><i class="bi bi-card-heading"></i> Основная информация</h3>
+            
+            <div class="mb-4">
+                <label class="form-label">Название рецепта <span class="text-danger">*</span></label>
+                <input type="text" name="title" id="title" required maxlength="150" class="form-control"
+                       placeholder="Введите название рецепта">
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">Описание</label>
+                <textarea name="description" id="description" rows="3" class="form-control"
+                          placeholder="Расскажите о вашем рецепте..."></textarea>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <label class="form-label">Время приготовления (минут)</label>
+                    <input type="number" name="cooking_time" id="cooking_time" min="1" class="form-control"
+                           placeholder="Например: 45">
+                </div>
+            </div>
+        </div>
+
+        {{!-- Категории --}}
+        <div class="form-section">
+            <h3 class="section-title"><i class="bi bi-tags"></i> Категория</h3>
+            <p class="text-muted mb-3">Выберите одну категорию</p>
+    
+            <div class="mb-4">
+                <label class="form-label">Категория рецепта</label>
+                <select name="category_id" id="category_id" class="form-select" {{#unless categories}}disabled{{/unless}}>
+                    <option value="">-- Выберите категорию --</option>
+                    {{#each categories}}
+                        <option value="{{this.id}}" 
+                            {{#if (eq ../selectedCategory this.id)}}selected{{/if}}
+                            {{#if (eq ../selectedCategories this.id)}}selected{{/if}}>
+                            {{this.name}}
+                        </option>
+                    {{/each}}
+                </select>
+                {{#unless categories}}
+                    <div class="form-text text-warning">Нет доступных категорий. Добавьте категории в админке.</div>
+                {{/unless}}
+            </div>
+        </div>
+
+        {{!-- Ингредиенты --}}
+        <div class="form-section">
+            <h3 class="section-title"><i class="bi bi-basket"></i> Ингредиенты</h3>
+            <p class="text-muted mb-3">Каждый ингредиент — с новой строки</p>
+            <textarea name="ingredients_text"
+                      id="ingredients_text"
+                      rows="6"
+                      class="form-control mb-3"
+                      required
+                      placeholder="Мука — 200 г&#10;Яйцо — 2 шт&#10;Соль — щепотка"></textarea>
+        </div>
+
+        {{!-- Шаги --}}
+        <div class="form-section">
+            <h3 class="section-title"><i class="bi bi-list-ol"></i> Пошаговое приготовление</h3>
+            <p class="text-muted mb-3">Добавьте шаги приготовления с изображениями</p>
+            
+            <div id="stepsContainer" class="steps-container">
+                {{!-- Первый шаг будет здесь --}}
+            </div>
+
+            <button type="button" id="addStep" class="btn btn-secondary mb-3">
+                <i class="bi bi-plus-circle"></i> Добавить шаг
+            </button>
+        </div>
+
+        {{!-- Обложка рецепта --}}
+        <div class="form-section cover-section">
+            <h3 class="section-title"><i class="bi bi-image"></i> Обложка рецепта</h3>
+            
+            <div class="mb-4">
+                <label class="form-label">Добавить обложку (опционально)</label>
+                <input type="file" name="image" id="coverImage" accept="image/*" class="form-control">
+                <div class="cover-image-preview mt-2" style="display:none;">
+                    <img src="" class="img-thumbnail" style="max-width:250px;">
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg btn-submit-recipe">
+            <i class="bi bi-plus-circle"></i> Создать рецепт
+        </button>
+    </form>
+</div>
+
+{{!-- =================== JAVASCRIPT =================== --}}
+<script>
+(function() {
+    const form = document.getElementById('recipeForm');
+    const ingredients = document.getElementById('ingredients_text');
+    const time = document.getElementById('cooking_time');
+    const stepsContainer = document.getElementById('stepsContainer');
+    const addStepBtn = document.getElementById('addStep');
+    const coverImageInput = document.getElementById('coverImage');
+    const formErrors = document.getElementById('formErrors');
+
+    // Создание HTML для шага
+    function createStepHTML(stepNumber, index) {
+        return `
+        <div class="stepRow mb-3" data-step="${stepNumber}">
+            <h5 class="mb-2">Шаг ${stepNumber}</h5>
+            <textarea name="step_texts[]"
+                      class="form-control stepArea mb-2"
+                      rows="3"
+                      placeholder="Подробное описание этого шага приготовления"
+                      required></textarea>
+            
+            <div class="mb-2">
+                <label class="form-label small">Изображение для шага (опционально)</label>
+                <input type="file" 
+                       name="step_images_${index}" 
+                       class="form-control stepImage" 
+                       data-index="${index}"
+                       accept="image/*">
+                <div class="step-image-preview mt-2" style="display:none;">
+                    <img src="" class="img-thumbnail" style="max-width:200px;">
+                </div>
+            </div>
+            
+            <button type="button" class="btn btn-outline-danger btn-sm mt-2 removeStep" 
+                    ${stepNumber === 1 ? 'disabled style="opacity: 0.5;"' : ''}>
+                Удалить шаг
+            </button>
+            <hr class="mt-2">
+        </div>`;
+    }
+
+    // Инициализация первого шага
+    function initializeFirstStep() {
+        stepsContainer.innerHTML = createStepHTML(1, 0);
+    }
+
+    // Добавление нового шага
+    function addStep() {
+        const existingSteps = stepsContainer.querySelectorAll('.stepRow');
+        const stepNumber = existingSteps.length + 1;
+        const index = existingSteps.length; // индекс для имени файла
+        
+        const stepHTML = createStepHTML(stepNumber, index);
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = stepHTML;
+        stepsContainer.appendChild(tempDiv.firstElementChild);
+        
+        // Обновляем номера шагов
+        updateStepNumbers();
+    }
+
+    // Удаление шага
+    function removeStep(button) {
+        const stepRow = button.closest('.stepRow');
+        if (!stepRow) return;
+        
+        const steps = stepsContainer.querySelectorAll('.stepRow');
+        if (steps.length <= 1) {
+            showError('Должен остаться хотя бы один шаг');
+            return;
+        }
+        
+        stepRow.remove();
+        
+        // Обновляем номера шагов
+        updateStepNumbers();
+    }
+
+    // Обновление номеров шагов
+    function updateStepNumbers() {
+        const steps = stepsContainer.querySelectorAll('.stepRow');
+        steps.forEach((step, index) => {
+            const stepNumber = index + 1;
+            step.setAttribute('data-step', stepNumber);
+            
+            // Обновляем заголовок
+            const title = step.querySelector('h5');
+            if (title) title.textContent = `Шаг ${stepNumber}`;
+            
+            // Обновляем кнопку удаления (первый шаг нельзя удалить)
+            const removeBtn = step.querySelector('.removeStep');
+            if (removeBtn) {
+                if (stepNumber === 1) {
+                    removeBtn.disabled = true;
+                    removeBtn.style.opacity = '0.5';
+                } else {
+                    removeBtn.disabled = false;
+                    removeBtn.style.opacity = '1';
+                }
+            }
+        });
+    }
+
+    // Предпросмотр изображения
+    function previewImage(input, previewElement) {
+        const file = input.files[0];
+        if (!file) {
+            previewElement.style.display = 'none';
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = previewElement.querySelector('img');
+            if (img) img.src = e.target.result;
+            previewElement.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // Валидация формы
+    function validateForm(e) {
+        formErrors.classList.add('d-none');
+        
+        // Проверка ингредиентов
+        if (!ingredients.value.trim()) {
+            e.preventDefault();
+            showError('Введите ингредиенты');
+            ingredients.classList.add('is-invalid');
+            document.getElementById('ingredientsFeedback').textContent = 'Введите ингредиенты';
+            document.getElementById('ingredientsFeedback').style.display = 'block';
+            ingredients.focus();
+            return false;
+        } else {
+            ingredients.classList.remove('is-invalid');
+            document.getElementById('ingredientsFeedback').style.display = 'none';
+        }
+
+        // Проверка шагов
+        const stepTextareas = stepsContainer.querySelectorAll('.stepArea');
+        let hasValidSteps = false;
+        
+        stepTextareas.forEach((textarea, index) => {
+            if (textarea.value.trim()) {
+                hasValidSteps = true;
+                textarea.classList.remove('is-invalid');
+            } else {
+                textarea.classList.add('is-invalid');
+                if (index === 0) { // Первый шаг должен быть заполнен
+                    e.preventDefault();
+                    showError('Первый шаг обязателен для заполнения');
+                    textarea.focus();
+                    return false;
+                }
+            }
+        });
+        
+        if (!hasValidSteps) {
+            e.preventDefault();
+            showError('Добавьте хотя бы один шаг приготовления');
+            return false;
+        }
+        
+        return true;
+    }
+
+    // Показать ошибку
+    function showError(message) {
+        formErrors.textContent = message;
+        formErrors.classList.remove('d-none');
+    }
+
+    // Инициализация
+    function init() {
+        // Инициализация первого шага
+        initializeFirstStep();
+        
+        // Обработчики событий
+        addStepBtn.addEventListener('click', addStep);
+        
+        // Удаление шага
+        stepsContainer.addEventListener('click', function(e) {
+            if (e.target.classList.contains('removeStep') && !e.target.disabled) {
+                removeStep(e.target);
+            }
+        });
+        
+        // Предпросмотр обложки
+        if (coverImageInput) {
+            const coverPreview = document.querySelector('.cover-image-preview');
+            coverImageInput.addEventListener('change', function() {
+                previewImage(this, coverPreview);
+            });
+        }
+        
+        // Предпросмотр изображений шагов
+        stepsContainer.addEventListener('change', function(e) {
+            if (e.target.classList.contains('stepImage')) {
+                const previewContainer = e.target.nextElementSibling;
+                if (previewContainer && previewContainer.classList.contains('step-image-preview')) {
+                    previewImage(e.target, previewContainer);
+                }
+            }
+        });
+        
+        // Валидация при вводе
+        ingredients.addEventListener('input', function() {
+            if (this.value.trim()) {
+                this.classList.remove('is-invalid');
+                document.getElementById('ingredientsFeedback').style.display = 'none';
+            }
+        });
+        
+        // Очистка ошибок при вводе в шагах
+        stepsContainer.addEventListener('input', function(e) {
+            if (e.target.classList.contains('stepArea')) {
+                if (e.target.value.trim()) {
+                    e.target.classList.remove('is-invalid');
+                }
+            }
+        });
+        
+        // Основная валидация формы
+        form.addEventListener('submit', validateForm);
+    }
+
+    // Запуск при загрузке
+    document.addEventListener('DOMContentLoaded', init);
+
+})();
+</script>

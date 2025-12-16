@@ -1,0 +1,151 @@
+{{!-- views/notifications.hbs --}}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="bi bi-bell"></i> Уведомления</h4>
+                    {{#if notifications.length}}
+                        <button id="markAllAsReadBtn" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-check-all"></i> Отметить все как прочитанные
+                        </button>
+                    {{/if}}
+                </div>
+                
+                <div class="card-body p-0">
+                    {{#if notifications.length}}
+                        <div class="list-group list-group-flush">
+                            {{#each notifications}}
+                                <div class="list-group-item list-group-item-action {{#unless this.is_read}}bg-light{{/unless}} notification-item"
+                                     data-id="{{this.id}}">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <div class="d-flex align-items-start">
+                                            <div class="me-3">
+                                                <i class="bi {{#if this.is_read}}bi-check-circle text-success{{else}}bi-circle text-primary{{/if}} fs-5"></i>
+                                            </div>
+                                            <div>
+                                                <p class="mb-1">{{this.text}}</p>
+                                                <small class="text-muted">{{formatDate this.created_at}}</small>
+                                            </div>
+                                        </div>
+                                        {{#if this.link}}
+                                            <a href="{{this.link}}" class="btn btn-sm btn-outline-secondary">
+                                                <i class="bi bi-arrow-right"></i>
+                                            </a>
+                                        {{/if}}
+                                    </div>
+                                </div>
+                            {{/each}}
+                        </div>
+                    {{else}}
+                        <div class="text-center py-5">
+                            <i class="bi bi-bell-slash fs-1 text-muted"></i>
+                            <h5 class="mt-3">Нет уведомлений</h5>
+                            <p class="text-muted">Здесь появятся ваши уведомления</p>
+                        </div>
+                    {{/if}}
+                </div>
+                
+                <div class="card-footer">
+                    <a href="/recipes" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Назад к рецептам
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Отметить уведомление как прочитанное при клике
+    document.querySelectorAll('.notification-item').forEach(item => {
+        item.addEventListener('click', async function(e) {
+            if (e.target.tagName === 'A' || e.target.closest('a')) return;
+            
+            const notificationId = this.dataset.id;
+            
+            // Если уведомление не прочитано, отмечаем его
+            if (!this.classList.contains('bg-light')) return;
+            
+            try {
+                const response = await fetch(`/notifications/${notificationId}/read`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    this.classList.remove('bg-light');
+                    const icon = this.querySelector('.bi');
+                    icon.classList.remove('bi-circle', 'text-primary');
+                    icon.classList.add('bi-check-circle', 'text-success');
+                    
+                    // Обновляем счетчик в навбаре
+                    updateNotificationCount();
+                }
+            } catch (err) {
+                console.error('Ошибка:', err);
+            }
+        });
+    });
+    
+    // Отметить все как прочитанные
+    const markAllBtn = document.getElementById('markAllAsReadBtn');
+    if (markAllBtn) {
+        markAllBtn.addEventListener('click', async function() {
+            try {
+                const response = await fetch('/notifications/read-all', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    // Обновляем все уведомления на странице
+                    document.querySelectorAll('.notification-item').forEach(item => {
+                        item.classList.remove('bg-light');
+                        const icon = item.querySelector('.bi');
+                        if (icon) {
+                            icon.classList.remove('bi-circle', 'text-primary');
+                            icon.classList.add('bi-check-circle', 'text-success');
+                        }
+                    });
+                    
+                    // Обновляем счетчик
+                    updateNotificationCount();
+                    
+                    // Показываем уведомление
+                    showToast('Все уведомления отмечены как прочитанные', 'success');
+                }
+            } catch (err) {
+                console.error('Ошибка:', err);
+                showToast('Ошибка при обновлении уведомлений', 'error');
+            }
+        });
+    }
+    
+    // Обновление счетчика уведомлений
+    async function updateNotificationCount() {
+        try {
+            // Здесь можно обновить счетчик в навбаре
+            // В реальном приложении можно использовать WebSockets или периодический опрос
+            location.reload(); // Простейший вариант - перезагрузить страницу
+        } catch (err) {
+            console.error('Ошибка обновления счетчика:', err);
+        }
+    }
+    
+    // Функция показа тостов (можно заменить на свою реализацию)
+    function showToast(message, type = 'info') {
+        // Используем Bootstrap Toast если есть, или простой alert
+        if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
+            // Создаем toast
+        } else {
+            alert(message);
+        }
+    }
+});
+</script>

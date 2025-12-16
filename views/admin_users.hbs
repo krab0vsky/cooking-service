@@ -1,0 +1,120 @@
+<h1 class="page-title">Управление пользователями</h1>
+
+{{#if error}}
+    <div class="alert alert-error">
+        <strong>Ошибка:</strong> {{error}}
+    </div>
+{{/if}}
+
+{{#if message}}
+    <div class="alert alert-success">
+        <strong>Успешно:</strong> {{message}}
+    </div>
+{{/if}}
+
+<div class="users-table-container">
+    <table class="users-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Логин</th>
+                <th>Email</th>
+                <th>Имя</th>
+                <th>Роль</th>
+                <th>Статус</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#each users}}
+            <tr class="{{#if this.is_banned}}user-banned{{/if}}">
+                <td>{{this.id}}</td>
+                <td class="user-login">
+                    {{this.login}}
+                    {{#if this.is_banned}}
+                        <span class="banned-badge">(забанен)</span>
+                    {{/if}}
+                </td>
+                <td>{{this.email}}</td>
+                <td>{{this.name}}</td>
+                <td class="user-role">
+                    {{this.role}}
+                    {{#ifEquals this.role "admin"}}
+                        <span class="admin-badge">(админ)</span>
+                    {{/ifEquals}}
+                </td>
+                <td class="user-status">
+                    {{#if this.is_banned}}
+                        <span class="status-banned">🚫 Забанен</span>
+                        {{#if this.ban_reason}}
+                            <div class="ban-reason">Причина: {{this.ban_reason}}</div>
+                        {{/if}}
+                        {{#if this.banned_at}}
+                            <div class="ban-date">С: <span class="format-date">{{this.banned_at}}</span></div>
+                        {{/if}}
+                    {{else}}
+                        <span class="status-active">✅ Активен</span>
+                    {{/if}}
+                </td>
+                <td class="user-actions">
+                    {{#ifEquals ../user.id this.id}}
+                        <span class="current-user">(это вы)</span>
+                    {{else}}
+                        {{#if this.is_banned}}
+                            <form action="/admin/users/unban/{{this.id}}" method="POST" class="action-form">
+                                <button type="submit" class="btn btn-unban"
+                                        onclick="return confirm('Разбанить пользователя {{this.login}}?')">
+                                    Разбанить
+                                </button>
+                            </form>
+                        {{else}}
+                            <div class="action-buttons">
+                                <form action="/admin/users/ban/{{this.id}}" method="POST" class="action-form ban-form">
+                                    <input type="text" 
+                                           name="ban_reason" 
+                                           placeholder="Причина бана" 
+                                           class="ban-reason-input"
+                                           required>
+                                    <button type="submit" class="btn btn-ban"
+                                            onclick="return confirm('Забанить пользователя {{this.login}}?')">
+                                        🚫 Забанить
+                                    </button>
+                                </form>
+                                
+                                <form action="/admin/users/delete/{{this.id}}" method="POST" class="action-form">
+                                    <button type="submit" class="btn btn-delete"
+                                            onclick="return confirm('УДАЛИТЬ пользователя {{this.login}} навсегда?\\n\\nВНИМАНИЕ: Все рецепты, оценки и отзывы пользователя будут удалены!')">
+                                        🗑️ Удалить навсегда
+                                    </button>
+                                </form>
+                            </div>
+                        {{/if}}
+                    {{/ifEquals}}
+                </td>
+            </tr>
+            {{/each}}
+        </tbody>
+    </table>
+</div>
+
+<script>
+// Форматирование даты
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.format-date').forEach(el => {
+        if (el.textContent) {
+            el.textContent = formatDate(el.textContent);
+        }
+    });
+});
+</script>

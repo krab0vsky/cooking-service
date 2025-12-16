@@ -1,0 +1,383 @@
+<a href="/recipes/{{recipe.id}}" class="btn-back">
+    <i class="bi bi-arrow-left"></i> Назад к рецепту
+</a>
+
+<div class="form-header">
+    <h1> Редактировать рецепт</h1>
+    <p class="form-subtitle">Внесите изменения в ваш кулинарный шедевр</p>
+</div>
+
+<div class="recipe-form-container">
+    {{!-- Верхняя панель ошибок --}}
+    <div id="formErrors" class="alert alert-danger d-none" role="alert"></div>
+
+    <form id="recipeForm" action="/recipes/{{recipe.id}}/edit" method="POST" enctype="multipart/form-data">
+        
+        {{!-- Основные поля --}}
+        <div class="form-section">
+            <h3 class="section-title"><i class="bi bi-card-heading"></i> Основная информация</h3>
+            
+            <div class="mb-4">
+                <label class="form-label">Название рецепта <span class="text-danger">*</span></label>
+                <input type="text" name="title" id="title" required maxlength="94"
+                       class="form-control" value="{{recipe.title}}"
+                       placeholder="Введите название рецепта">
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">Описание</label>
+                <textarea name="description" id="description" rows="3" class="form-control"
+                          placeholder="Расскажите о вашем рецепте...">{{recipe.description}}</textarea>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <label class="form-label">Время приготовления (минут)</label>
+                    <input type="number" name="cooking_time" id="cooking_time" min="1"
+                           class="form-control" value="{{recipe.cooking_time}}"
+                           placeholder="Например: 45">
+                </div>
+            </div>
+        </div>
+
+        {{!-- Категории --}}
+        <div class="form-section">
+            <h3 class="section-title"><i class="bi bi-tags"></i> Категория</h3>
+            <p class="text-muted mb-3">Выберите одну категорию</p>
+    
+            <div class="mb-4">
+                <label class="form-label">Категория рецепта</label>
+                <select name="category_id" id="category_id" class="form-select" {{#unless categories}}disabled{{/unless}}>
+                    <option value="">-- Выберите категорию --</option>
+                    {{#each categories}}
+                        <option value="{{this.id}}" 
+                            {{#if (eq ../selectedCategory this.id)}}selected{{/if}}
+                            {{#if (eq ../selectedCategories this.id)}}selected{{/if}}>
+                            {{this.name}}
+                        </option>
+                    {{/each}}
+                </select>
+                {{#unless categories}}
+                    <div class="form-text text-warning">Нет доступных категорий. Добавьте категории в админке.</div>
+                {{/unless}}
+            </div>
+        </div>
+
+        {{!-- Ингредиенты --}}
+        <div class="form-section">
+            <h3 class="section-title"><i class="bi bi-basket"></i> Ингредиенты</h3>
+            <p class="text-muted mb-3">Каждый ингредиент — с новой строки</p>
+            <textarea name="ingredients_text"
+                      id="ingredients_text"
+                      rows="6"
+                      class="form-control mb-3"
+                      required
+                      placeholder="Мука — 200 г&#10;Яйцо — 2 шт&#10;Соль — щепотка">{{recipe.ingredients_text}}</textarea>
+        </div>
+
+        {{!-- Шаги --}}
+        <div class="form-section">
+            <h3 class="section-title"><i class="bi bi-list-ol"></i> Пошаговое приготовление</h3>
+            <p class="text-muted mb-3">Добавьте шаги приготовления с изображениями</p>
+            
+            <div id="stepsContainer" class="steps-container">
+                {{#if steps.length}}
+                    {{#each steps}}
+                        <div class="stepRow mb-3" data-step="{{this.step_number}}" data-step-id="{{this.id}}">
+                            <h5>Шаг {{this.step_number}}</h5>
+                            
+                            <input type="hidden" name="step_ids[]" value="{{this.id}}">
+                            
+                            <textarea name="step_texts[]" 
+                                      class="form-control stepArea mb-2" 
+                                      rows="3" 
+                                      required
+                                      placeholder="Опишите этот шаг подробно...">{{this.text}}</textarea>
+
+                            {{#if this.image}}
+                                <div class="mb-3">
+                                    <p class="text-muted small mb-1">Текущее изображение:</p>
+                                    <img src="{{this.image}}" 
+                                         class="img-thumbnail current-step-image mb-2" 
+                                         style="max-width:200px;"
+                                         data-image-path="{{this.image}}">
+                                </div>
+                            {{/if}}
+
+                            <div class="mb-3">
+                                <label class="form-label small">
+                                    {{#if this.image}}Заменить изображение{{else}}Добавить изображение{{/if}}
+                                </label>
+                                <input type="file" 
+                                       name="step_images_{{@index}}" 
+                                       class="form-control stepImage" 
+                                       data-index="{{@index}}"
+                                       accept="image/*">
+                                <div class="step-image-preview mt-2" style="display:none;">
+                                    <img src="" class="img-thumbnail" style="max-width:200px;">
+                                </div>
+                            </div>
+
+                            {{#unless @first}}
+                                <button type="button" 
+                                        class="btn btn-outline-danger btn-sm mt-2 removeStep">
+                                    <i class="bi bi-trash"></i> Удалить шаг
+                                </button>
+                            {{/unless}}
+                        </div>
+                    {{/each}}
+                {{else}}
+                    <div class="stepRow mb-3" data-step="1">
+                        <h5>Шаг 1</h5>
+                        <textarea name="step_texts[]" 
+                                  class="form-control stepArea mb-2" 
+                                  rows="3" 
+                                  required
+                                  placeholder="Опишите первый шаг приготовления"></textarea>
+                        <div class="mb-3">
+                            <label class="form-label small">Изображение для шага (опционально)</label>
+                            <input type="file" 
+                                   name="step_images_0" 
+                                   class="form-control stepImage" 
+                                   data-index="0"
+                                   accept="image/*">
+                            <div class="step-image-preview mt-2" style="display:none;">
+                                <img src="" class="img-thumbnail" style="max-width:200px;">
+                            </div>
+                        </div>
+                    </div>
+                {{/if}}
+            </div>
+
+            <button type="button" id="addStep" class="btn btn-secondary mb-3">
+                <i class="bi bi-plus-circle"></i> Добавить шаг
+            </button>
+        </div>
+
+        {{!-- Обложка рецепта --}}
+        <div class="form-section cover-section">
+            <h3 class="section-title"><i class="bi bi-image"></i> Обложка рецепта</h3>
+            
+            {{#if recipe.image}}
+                <div class="mb-4">
+                    <p class="text-muted mb-2">Текущая обложка:</p>
+                    <img src="{{recipe.image}}" 
+                         class="img-thumbnail mb-3 current-cover-image" 
+                         style="max-width:250px;"
+                         data-image-path="{{recipe.image}}">
+                </div>
+            {{/if}}
+
+            <div class="mb-4">
+                <label class="form-label">
+                    {{#if recipe.image}}Заменить обложку{{else}}Добавить обложку{{/if}}
+                </label>
+                <input type="file" name="image" id="coverImage" accept="image/*" class="form-control">
+                <div class="cover-image-preview mt-2" style="display:none;">
+                    <img src="" class="img-thumbnail" style="max-width:250px;">
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg btn-submit-recipe">
+            <i class="bi bi-check-circle"></i> Сохранить изменения
+        </button>
+    </form>
+</div>
+
+
+<script>
+(function() {
+    const form = document.getElementById('recipeForm');
+    const stepsContainer = document.getElementById('stepsContainer');
+    const addStepBtn = document.getElementById('addStep');
+    const coverImageInput = document.getElementById('coverImage');
+    const formErrors = document.getElementById('formErrors');
+
+    // Создание HTML для нового шага
+    function createStepHTML(stepNumber, index) {
+        return `
+        <div class="stepRow mb-3" data-step="${stepNumber}">
+            <h5>Шаг ${stepNumber}</h5>
+            <textarea name="step_texts[]" 
+                      class="form-control stepArea mb-2" 
+                      rows="3" 
+                      required
+                      placeholder="Опишите этот шаг приготовления"></textarea>
+            
+            <div class="mb-2">
+                <label class="form-label small">Изображение для шага (опционально)</label>
+                {{!-- ИЗМЕНЕНИЕ: шаг_images_${index} вместо step_images[] --}}
+                <input type="file" 
+                       name="step_images_${index}" 
+                       class="form-control stepImage" 
+                       data-index="${index}"
+                       accept="image/*">
+                <div class="step-image-preview mt-2" style="display:none;">
+                    <img src="" class="img-thumbnail" style="max-width:200px;">
+                </div>
+            </div>
+            
+            <button type="button" 
+                    class="btn btn-outline-danger btn-sm mt-2 removeStep">
+                Удалить шаг
+            </button>
+            <hr>
+        </div>`;
+    }
+
+    // Добавление нового шага
+    function addStep() {
+        const existingSteps = stepsContainer.querySelectorAll('.stepRow');
+        const stepNumber = existingSteps.length + 1;
+        const index = existingSteps.length; // индекс для имени файла
+        
+        const stepHTML = createStepHTML(stepNumber, index);
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = stepHTML;
+        stepsContainer.appendChild(tempDiv.firstElementChild);
+        
+        updateStepNumbers();
+    }
+
+    // Удаление шага
+    function removeStep(button) {
+        const stepRow = button.closest('.stepRow');
+        if (!stepRow) return;
+        
+        const allSteps = stepsContainer.querySelectorAll('.stepRow');
+        if (allSteps.length <= 1) {
+            showError('Должен остаться хотя бы один шаг');
+            return;
+        }
+        
+        stepRow.remove();
+        updateStepNumbers();
+    }
+
+    // Обновление номеров шагов
+    function updateStepNumbers() {
+        const steps = stepsContainer.querySelectorAll('.stepRow');
+        steps.forEach((step, index) => {
+            const stepNumber = index + 1;
+            step.setAttribute('data-step', stepNumber);
+            
+            const title = step.querySelector('h5');
+            if (title) title.textContent = `Шаг ${stepNumber}`;
+            
+            const removeBtn = step.querySelector('.removeStep');
+            if (removeBtn) {
+                if (stepNumber === 1) {
+                    removeBtn.disabled = true;
+                    removeBtn.style.opacity = '0.5';
+                } else {
+                    removeBtn.disabled = false;
+                    removeBtn.style.opacity = '1';
+                }
+            }
+        });
+    }
+
+    // Предпросмотр изображения
+    function previewImage(input, previewElement) {
+        const file = input.files[0];
+        if (!file) {
+            previewElement.style.display = 'none';
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = previewElement.querySelector('img');
+            if (img) img.src = e.target.result;
+            previewElement.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // Валидация формы
+    function validateForm(e) {
+        formErrors.classList.add('d-none');
+        
+        // Проверка ингредиентов
+        const ingredients = document.getElementById('ingredients_text');
+        if (!ingredients.value.trim()) {
+            e.preventDefault();
+            showError('Введите ингредиенты');
+            ingredients.focus();
+            return false;
+        }
+        
+        // Проверка шагов
+        const stepTextareas = stepsContainer.querySelectorAll('.stepArea');
+        let hasValidSteps = false;
+        
+        stepTextareas.forEach((textarea, index) => {
+            if (textarea.value.trim()) {
+                hasValidSteps = true;
+            } else if (index === 0) {
+                e.preventDefault();
+                showError('Первый шаг обязателен для заполнения');
+                textarea.focus();
+                return false;
+            }
+        });
+        
+        if (!hasValidSteps) {
+            e.preventDefault();
+            showError('Добавьте хотя бы один шаг приготовления');
+            return false;
+        }
+        
+        return true;
+    }
+
+    // Показать ошибку
+    function showError(message) {
+        formErrors.textContent = message;
+        formErrors.classList.remove('d-none');
+    }
+
+    // Инициализация
+    function init() {
+        // Обновить номера шагов
+        updateStepNumbers();
+        
+        // Обработчики событий
+        addStepBtn.addEventListener('click', addStep);
+        
+        // Удаление шага
+        stepsContainer.addEventListener('click', function(e) {
+            if (e.target.classList.contains('removeStep') && !e.target.disabled) {
+                removeStep(e.target);
+            }
+        });
+        
+        // Предпросмотр обложки
+        if (coverImageInput) {
+            const coverPreview = document.querySelector('.cover-image-preview');
+            coverImageInput.addEventListener('change', function() {
+                previewImage(this, coverPreview);
+            });
+        }
+        
+        // Предпросмотр изображений шагов
+        stepsContainer.addEventListener('change', function(e) {
+            if (e.target.classList.contains('stepImage')) {
+                const previewContainer = e.target.nextElementSibling;
+                if (previewContainer && previewContainer.classList.contains('step-image-preview')) {
+                    previewImage(e.target, previewContainer);
+                }
+            }
+        });
+        
+        // Валидация формы
+        form.addEventListener('submit', validateForm);
+    }
+
+    // Запуск при загрузке
+    document.addEventListener('DOMContentLoaded', init);
+
+})();
+</script>

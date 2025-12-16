@@ -1,0 +1,101 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/recipes">Рецепты</a>
+        
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <div class="collapse navbar-collapse" id="navbarContent">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                {{#if user}}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/recipes/create">Создать рецепт</a>
+                    </li>
+                    
+                    {{#ifEquals user.role "admin"}}
+                        <li class="nav-item">
+                            <a class="nav-link text-warning" href="/admin/users">Управление пользователями</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-warning" href="/admin/dicts">Справочник</a>
+                        </li>
+                    {{/ifEquals}}
+                {{/if}}
+            </ul>
+            
+            <ul class="navbar-nav">
+                {{#if user}}
+                    <!-- Иконка уведомлений -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link position-relative" href="#" id="notificationDropdown" 
+                           role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-bell"></i>
+                            {{#if notificationCount}}
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                    {{notificationCount}}
+                                    <span class="visually-hidden">непрочитанных уведомлений</span>
+                                </span>
+                            {{/if}}
+                        </a>
+                        
+                        <!-- Выпадающий список уведомлений -->
+                        <ul class="dropdown-menu dropdown-menu-end notification-dropdown" 
+                            aria-labelledby="notificationDropdown">
+                            <li>
+                                <h6 class="dropdown-header">Уведомления</h6>
+                            </li>
+                            
+                            {{#if notifications.length}}
+                                {{#each notifications}}
+                                    <li>
+                                        <a class="dropdown-item d-flex align-items-start {{#unless this.is_read}}bg-light{{/unless}} notification-item" 
+                                           href="{{#if this.link}}{{this.link}}{{else}}#{{/if}}"
+                                           data-id="{{this.id}}">
+                                            <div class="me-2">
+                                                <i class="bi {{#if this.is_read}}bi-check-circle text-success{{else}}bi-circle text-primary{{/if}}"></i>
+                                            </div>
+                                            <div>
+                                                <div class="small text-muted">{{formatDate this.created_at}}</div>
+                                                <div>{{this.text}}</div>
+                                            </div>
+                                        </a>
+                                    </li>
+                                {{/each}}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-center" href="/notifications">
+                                        <i class="bi bi-list-ul"></i> Все уведомления
+                                    </a>
+                                </li>
+
+                            {{else}}
+                                <li>
+                                    <a class="dropdown-item text-center text-muted" href="#">
+                                        Нет новых уведомлений
+                                    </a>
+                                </li>
+                            {{/if}}
+                        </ul>
+                    </li>
+                    
+                    <li class="nav-item d-flex align-items-center me-3">
+                        <span class="navbar-text">Привет, {{user.name}} ({{user.email}})</span>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="/logout">Выйти</a>
+                    </li>
+                    
+                {{else}}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/login">Войти</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/register">Регистрация</a>
+                    </li>
+                {{/if}}
+            </ul>
+        </div>
+    </div>
+</nav>

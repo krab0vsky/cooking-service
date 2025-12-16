@@ -1,0 +1,74 @@
+<div class="page-header">
+    <h1>Все рецепты</h1>
+    <p class="subtitle">Просматривайте, фильтруйте и выбирайте лучшие блюда</p>
+</div>
+
+<div class="filters">
+    <form method="GET" class="filters-form">
+
+        <input 
+            type="text" 
+            name="search" 
+            value="{{search}}" 
+            placeholder="Поиск по названию..."
+            class="input-text"
+        >
+
+        <select name="category" class="input-select">
+            <option value="">Все категории</option>
+            {{#each categories}}
+                <option 
+                    value="{{this.id}}" 
+                    {{#ifEquals ../selectedCategory this.id}}selected{{/ifEquals}}
+                >
+                    {{this.name}}
+                </option>
+            {{/each}}
+        </select>
+
+        <button class="btn btn-primary">Фильтровать</button>
+    </form>
+</div>
+
+<!-- Новая красивая сетка карточек -->
+<div class="recipes-grid-2">
+    {{#each recipes}}
+        <div class="recipe-card pro-card">
+
+            <!-- Автор (теперь обычный блок сверху) -->
+            <div class="recipe-author">
+                <span class="author-name">{{this.author_name}}</span>
+            </div>
+
+            <!-- Обложка -->
+            <a href="/recipes/{{this.id}}" class="recipe-link">
+                <div class="recipe-image-wrapper">
+
+                    <img 
+                        src="{{#if this.image}}{{this.image}}{{else}}/default_food.jpg{{/if}}"
+                        alt="{{this.title}}"
+                        class="recipe-image"
+                    >
+
+                    {{#if this.category_name}}
+                        <span class="recipe-tag">{{this.category_name}}</span>
+                    {{/if}}
+
+                    <span class="recipe-time-tag">⏱ {{this.cooking_time}} мин</span>
+
+                </div>
+
+                <div class="recipe-bottom">
+                    <h3 class="recipe-title">{{this.title}}</h3>
+                    <p class="recipe-desc">{{this.description}}</p>
+                </div>
+            </a>
+
+        </div>
+    {{/each}}
+
+    {{#unless recipes}}
+        <p class="no-results">Рецептов не найдено...</p>
+    {{/unless}}
+</div>
+

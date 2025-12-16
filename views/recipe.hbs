@@ -1,0 +1,367 @@
+<div class="recipe-page">
+  
+  {{!-- Обложка --}}
+  <div class="recipe-cover">
+    <img 
+      src="{{#if recipe.image}}{{recipe.image}}{{else}}/default_food.jpg{{/if}}" 
+      alt="{{recipe.title}}" 
+    >
+    {{#if recipe.cooking_time}}
+      <span class="recipe-time-tag">
+        ⏱ {{recipe.cooking_time}} мин
+      </span>
+    {{/if}}
+  </div>
+  
+  {{!-- Контент --}}
+  <div class="recipe-content">
+    <h1 class="recipe-title">{{recipe.title}}</h1>
+    
+    <div class="recipe-meta">
+      <span class="recipe-author">👨‍🍳 {{recipe.author_name}}</span>
+    </div>
+    
+    {{#if categories.length}}
+      <div class="recipe-categories">
+        {{#each categories}}
+          <span class="recipe-category">{{this.name}}</span>
+        {{/each}}
+      </div>
+    {{/if}}
+    
+    {{#if recipe.description}}
+      <div class="recipe-section">
+        <h3>Описание</h3>
+        <p>{{recipe.description}}</p>
+      </div>
+    {{/if}}
+    
+    {{!-- Ингредиенты --}}
+    <div class="recipe-section">
+      <h3>Ингредиенты</h3>
+      {{#if recipe.ingredients_text}}
+        <pre class="ingredients-box">{{recipe.ingredients_text}}</pre>
+      {{else}}
+        <p class="muted">Ингредиенты не указаны.</p>
+      {{/if}}
+    </div>
+    
+    {{!-- Шаги --}}
+    {{#if steps.length}}
+      <div class="recipe-section">
+        <h3>Пошаговое приготовление</h3>
+        <div class="recipe-steps">
+          {{#each steps}}
+            <div class="recipe-step">
+              <div class="step-number">Шаг {{this.step_number}}</div>
+              <div class="step-text">{{this.text}}</div>
+              {{#if this.image}}
+                <img 
+                  src="{{this.image}}" 
+                  alt="Шаг {{this.step_number}}" 
+                  class="step-image" 
+                >
+              {{/if}}
+            </div>
+          {{/each}}
+        </div>
+      </div>
+    {{/if}}
+    
+    {{!-- Кнопки --}}
+    <div class="recipe-actions">
+      <a href="/recipes" class="btn btn-outline-secondary">← Назад</a>
+      
+      {{#if canEdit}}
+        <div class="btn-group">
+          <a href="/recipes/{{recipe.id}}/edit" class="btn btn-warning">
+            Редактировать
+          </a>
+          <a 
+            href="/recipes/{{recipe.id}}/delete" 
+            class="btn btn-danger" 
+            onclick="return confirm('Удалить рецепт?')"
+          >
+            Удалить
+          </a>
+        </div>
+      {{/if}}
+    </div>
+  </div>
+  
+  {{!-- ⭐ РЕЙТИНГ --}}
+  <div class="recipe-section">
+    <h3>Рейтинг</h3>
+    
+    {{#if rating.count}}
+      <p class="rating-value">
+        ⭐ {{rating.avg}} / 5
+        <span class="rating-count">({{rating.count}} оценок)</span>
+      </p>
+    {{else}}
+      <p class="muted">Пока нет оценок</p>
+    {{/if}}
+    
+    {{#if user}}
+      {{#unless userRating}}
+        {{#unless canEdit}}
+          <form method="POST" action="/recipes/{{recipe.id}}/rating" class="review-form">
+            <label>Ваша оценка</label>
+            <select name="rating" required>
+              <option value="">Выберите</option>
+              <option value="5">⭐⭐⭐⭐⭐</option>
+              <option value="4">⭐⭐⭐⭐</option>
+              <option value="3">⭐⭐⭐</option>
+              <option value="2">⭐⭐</option>
+              <option value="1">⭐</option>
+            </select>
+            <button class="btn btn-primary">Оценить</button>
+          </form>
+        {{/unless}}
+      {{else}}
+        <p class="muted">Вы уже поставили оценку ⭐ {{userRating}}</p>
+      {{/unless}}
+    {{else}}
+      <p class="muted">Войдите, чтобы поставить оценку</p>
+    {{/if}}
+  </div>
+  
+  {{!-- 💬 ОТЗЫВ --}}
+  <div class="recipe-section">
+      <h3>Оставить отзыв</h3>
+    
+      <form id="reviewForm" method="POST" class="review-form">
+          {{#unless user}}
+              <input 
+                  type="text" 
+                  name="author_name" 
+                  id="author_name"
+                  placeholder="Ваше имя" 
+                  required 
+                  class="form-control mb-2"
+              >
+          {{/unless}}
+        
+          <textarea 
+              name="text" 
+              id="reviewText"
+              placeholder="Ваш отзыв..." 
+              required
+              class="form-control mb-2"
+              rows="3"
+          ></textarea>
+        
+          <input type="hidden" name="parent_id" id="parent_id" value="">
+
+          <button type="submit" class="btn btn-primary" id="submitReview">
+              Отправить
+          </button>
+          <div id="reviewError" class="text-danger mt-2" style="display: none;"></div>
+      </form>
+  </div>
+  
+  {{!-- 🧾 СПИСОК ОТЗЫВОВ --}}
+  <div class="recipe-section">
+      <h3>Отзывы <span id="reviewsCount">({{reviews.length}})</span></h3>
+    
+      <div id="reviewsList" class="reviews-list">
+          {{#if reviews.length}}
+              {{#each reviews}}
+                  <div class="review-card mb-3" id="review-{{this.id}}">
+                      <div class="review-header">
+                          <strong>
+                              {{#if this.user_name}}
+                                  {{this.user_name}}
+                              {{else}}
+                                  {{this.author_name}}
+                              {{/if}}
+                          </strong>
+                          <small class="text-muted ms-2">{{formatDate this.created_at}}</small>
+                      </div>
+
+                      <div class="review-text mt-2">{{this.text}}</div>
+                  </div>
+              {{/each}}
+          {{else}}
+              <p class="muted" id="noReviews">Отзывов пока нет.</p>
+          {{/if}}
+      </div>
+  </div>
+
+  <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const reviewForm = document.getElementById('reviewForm');
+    const reviewsList = document.getElementById('reviewsList');
+    const noReviews = document.getElementById('noReviews');
+    const reviewsCount = document.getElementById('reviewsCount');
+    const submitBtn = document.getElementById('submitReview');
+    const reviewError = document.getElementById('reviewError');
+    
+    if (reviewForm) {
+        reviewForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Получаем данные формы
+            const formData = new FormData(this);
+            const recipeId = window.location.pathname.split('/')[2];
+            
+            // Валидация
+            const text = document.getElementById('reviewText').value.trim();
+            if (!text) {
+                showError('Введите текст отзыва');
+                return;
+            }
+            
+            // Показываем загрузку
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Отправка...';
+            reviewError.style.display = 'none';
+            
+            try {
+                // Отправляем AJAX запрос
+                const response = await fetch(`/recipes/${recipeId}/review`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Добавляем новый отзыв в список
+                    addNewReview(data.review);
+                    
+                    // Очищаем форму
+                    reviewForm.reset();
+                    
+                    // Показываем успешное сообщение
+                    showSuccessMessage('Отзыв успешно добавлен!');
+                    
+                    // Обновляем счетчик
+                    updateReviewsCount();
+                } else {
+                    showError(data.error || 'Ошибка при отправке отзыва');
+                }
+                
+            } catch (error) {
+                console.error('Ошибка:', error);
+                showError('Ошибка сети. Проверьте подключение к интернету');
+            } finally {
+                // Восстанавливаем кнопку
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Отправить';
+            }
+        });
+    }
+    
+    // Функция добавления нового отзыва
+    function addNewReview(review) {
+        // Скрываем сообщение "нет отзывов"
+        if (noReviews) {
+            noReviews.style.display = 'none';
+        }
+        
+        // Создаем HTML для нового отзыва
+        const reviewHTML = `
+            <div class="review-card mb-3" id="review-${review.id}">
+                <div class="review-header">
+                    <strong>${review.user_name}</strong>
+                    <small class="text-muted ms-2">${formatDateForDisplay(review.created_at)}</small>
+                </div>
+                <div class="review-text mt-2">${review.text}</div>
+            </div>
+        `;
+        
+        // Добавляем отзыв в начало списка
+        if (reviewsList.firstChild) {
+            reviewsList.insertAdjacentHTML('afterbegin', reviewHTML);
+        } else {
+            reviewsList.innerHTML = reviewHTML;
+        }
+        
+        // Плавное появление нового отзыва
+        const newReview = document.getElementById(`review-${review.id}`);
+        newReview.style.opacity = '0';
+        newReview.style.transform = 'translateY(-10px)';
+        
+        setTimeout(() => {
+            newReview.style.transition = 'opacity 0.3s, transform 0.3s';
+            newReview.style.opacity = '1';
+            newReview.style.transform = 'translateY(0)';
+        }, 10);
+    }
+    
+    // Функция обновления счетчика отзывов
+    function updateReviewsCount() {
+        const reviews = document.querySelectorAll('.review-card');
+        const count = reviews.length;
+        
+        if (reviewsCount) {
+            reviewsCount.textContent = `(${count})`;
+        }
+    }
+    
+    // Функция показа ошибки
+    function showError(message) {
+        reviewError.textContent = message;
+        reviewError.style.display = 'block';
+        
+        // Автоматически скрываем через 5 секунд
+        setTimeout(() => {
+            reviewError.style.display = 'none';
+        }, 5000);
+    }
+    
+    // Функция показа успешного сообщения
+    function showSuccessMessage(message) {
+        // Создаем временное сообщение
+        const successDiv = document.createElement('div');
+        successDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
+        successDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        // Вставляем перед формой
+        reviewForm.parentNode.insertBefore(successDiv, reviewForm);
+        
+        // Автоматически скрываем через 3 секунды
+        setTimeout(() => {
+            const bsAlert = new bootstrap.Alert(successDiv);
+            bsAlert.close();
+        }, 3000);
+    }
+    
+    // Функция форматирования даты для отображения
+    function formatDateForDisplay(dateString) {
+        if (!dateString) return 'только что';
+        
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffSec = Math.floor(diffMs / 1000);
+        const diffMin = Math.floor(diffSec / 60);
+        const diffHour = Math.floor(diffMin / 60);
+        const diffDay = Math.floor(diffHour / 24);
+        
+        if (diffSec < 60) return 'только что';
+        if (diffMin < 60) return `${diffMin} мин. назад`;
+        if (diffHour < 24) return `${diffHour} ч. назад`;
+        if (diffDay < 7) return `${diffDay} дн. назад`;
+        
+        // Для старых дат используем нормальный формат
+        return date.toLocaleDateString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+    
+    // Инициализация счетчика при загрузке
+    updateReviewsCount();
+});
+</script>

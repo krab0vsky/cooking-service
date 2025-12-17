@@ -9,24 +9,19 @@ import dotenv from "dotenv";
 import bcrypt from "bcrypt"; 
 dotenv.config();
 
-// -------------------------------------------------------------
-// Пути
-// -------------------------------------------------------------
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// -------------------------------------------------------------
-// Express
-// -------------------------------------------------------------
+
+
 const app = express();
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-// -------------------------------------------------------------
-// Сессии
-// -------------------------------------------------------------
+
 app.use(
     session({
         secret: process.env.SESSION_SECRET || "secret123",
@@ -35,15 +30,12 @@ app.use(
     })
 );
 
-// Чтобы user был доступен в любом шаблоне как {{user}}
 app.use((req, res, next) => {
     res.locals.user = req.session.user || null;
     next();
 });
 
-// -------------------------------------------------------------
-// Handlebars
-// -------------------------------------------------------------
+
 app.engine(
     "hbs",
     engine({
@@ -82,9 +74,7 @@ app.engine(
 app.set("view engine", "hbs");
 app.set("views", path.join(__dirname, "views"));
 
-// -------------------------------------------------------------
-// База данных
-// -------------------------------------------------------------
+
 const db = await mysql.createPool({
     host: process.env.DB_HOST || "localhost",
     user: process.env.DB_USER || "root",
@@ -94,9 +84,8 @@ const db = await mysql.createPool({
 
 export default db;
 
-// -------------------------------------------------------------
+
 // УТИЛИТЫ ДЛЯ УВЕДОМЛЕНИЙ
-// -------------------------------------------------------------
 
 // Создание уведомления
 async function createNotification(userId, text, link = null) {
@@ -183,11 +172,8 @@ const upload = multer({
 });
 
 
-////////////////////////////////////////////////////////////
 // MIDDLEWARE — доступ
-////////////////////////////////////////////////////////////
 
-// Добавим в существующий middleware проверки аутентификации
 const requireAuth = (req, res, next) => {
     if (!req.session.user) {
         return res.redirect("/login");
@@ -267,11 +253,11 @@ app.use(async (req, res, next) => {
     
     if (req.session.user) {
         try {
-            // Количество непрочитанных уведомлений
+            
             const unreadCount = await getUnreadCount(req.session.user.id);
             res.locals.notificationCount = unreadCount;
             
-            // Последние 5 уведомлений
+            
             const notifications = await getUserNotifications(req.session.user.id, 5);
             res.locals.notifications = notifications;
         } catch (err) {
@@ -286,18 +272,17 @@ app.use(async (req, res, next) => {
     
     next();
 });
-// ---------------------------------------------------------------------------------------------------
+
 // ROUTES
-// ---------------------------------------------------------------------------------------------------
 
 // Главная
 app.get("/", (req, res) => {
     res.redirect("/recipes");
 });
 
-// ------------------------
+
 // Вход
-// ------------------------
+
 app.get("/login", (req, res) => {
     res.render("login", { title: "Вход" });
 });
@@ -346,9 +331,9 @@ app.post("/login", async (req, res) => {
     res.redirect("/recipes");
 });
 
-// ------------------------
+
 // Регистрация
-// ------------------------
+
 app.get("/register", (req, res) => {
     res.render("register", { title: "Регистрация" });
 });
@@ -411,7 +396,6 @@ app.post("/register", async (req, res) => {
     }
 });
 
-
 // Выход
 app.get("/logout", (req, res) => {
     req.session.destroy(() => {
@@ -419,15 +403,10 @@ app.get("/logout", (req, res) => {
     });
 });
 
-
-
-// ------------------------------------------------------------------------
 // Список рецептов
-// ------------------------------------------------------------------------
 app.get("/recipes", async (req, res) => {
     const { search, category } = req.query;
 
-    // ВАРИАНТ 2: Более безопасный запрос
     let sqlQuery = `
         SELECT DISTINCT
             r.*, 
@@ -448,7 +427,6 @@ app.get("/recipes", async (req, res) => {
     }
 
     if (category && category.trim()) {
-        // Проверяем, что категория активна и существует
         sqlQuery += ` AND r.id IN (
             SELECT recipe_id FROM recipe_categories rc2
             JOIN categories c2 ON rc2.category_id = c2.id
@@ -462,7 +440,6 @@ app.get("/recipes", async (req, res) => {
     try {
         const [recipes] = await db.query(sqlQuery, params);
         
-        // Для фильтра показываем только активные категории
         const [categories] = await db.query(
             "SELECT * FROM categories WHERE active = TRUE ORDER BY name ASC"
         );
@@ -487,9 +464,9 @@ app.get("/recipes", async (req, res) => {
     }
 });
 
-// ------------------------------------------------------------------------
+
 // Создание рецепта
-// ------------------------------------------------------------------------
+
 app.get("/recipes/create", requireAuth, async (req, res) => {
     // ИЗМЕНЕНИЕ: Добавляем WHERE active = TRUE
     const [categories] = await db.query("SELECT * FROM categories WHERE active = TRUE ORDER BY name ASC");
@@ -581,9 +558,9 @@ app.post(
     }
 );
 
-// ------------------------------------------------------------------------
+
 // Просмотр рецепта
-// ------------------------------------------------------------------------
+
 app.get("/recipes/:id", async (req, res) => {
     const recipeId = req.params.id;
     const user = req.session.user || null;
@@ -712,16 +689,13 @@ app.post("/recipes/:id/rating", async (req, res) => {
     res.redirect(`/recipes/${recipeId}`);
 });
 
-
-
-// ОБНОВЛЕННЫЙ МАРШРУТ ДЛЯ AJAX ОТЗЫВОВ
+// МАРШРУТ ДЛЯ AJAX ОТЗЫВОВ
 app.post("/recipes/:id/review", async (req, res) => {
     const recipeId = req.params.id;
     const { text, parent_id } = req.body;
     const user = req.session.user;
 
     try {
-        // Получаем информацию о рецепте для уведомления
         const [[recipe]] = await db.query(
             "SELECT user_id, title FROM recipes WHERE id = ?",
             [recipeId]
@@ -730,7 +704,6 @@ app.post("/recipes/:id/review", async (req, res) => {
         const authorName = user ? null : req.body.author_name;
         const reviewerName = user ? user.name : authorName;
 
-        // Вставляем отзыв
         const [result] = await db.query(
             `INSERT INTO reviews (recipe_id, user_id, author_name, text, parent_id)
              VALUES (?, ?, ?, ?, ?)`,
@@ -745,7 +718,6 @@ app.post("/recipes/:id/review", async (req, res) => {
 
         const reviewId = result.insertId;
 
-        // Получаем данные нового отзыва
         const [[newReview]] = await db.query(
             `SELECT r.*, u.name as user_name 
              FROM reviews r
@@ -754,7 +726,7 @@ app.post("/recipes/:id/review", async (req, res) => {
             [reviewId]
         );
 
-        // ⭐ СОЗДАНИЕ УВЕДОМЛЕНИЯ ДЛЯ АВТОРА РЕЦЕПТА (если отзыв не от автора)
+        // СОЗДАНИЕ УВЕДОМЛЕНИЯ ДЛЯ АВТОРА РЕЦЕПТА (если отзыв не от автора)
         if (recipe.user_id !== (user ? user.id : null)) {
             await createNotification(
                 recipe.user_id,
@@ -783,10 +755,7 @@ app.post("/recipes/:id/review", async (req, res) => {
     }
 });
 
-
-// ------------------------------------------------------------------------
-// Редактирование рецепта — УПРОЩЕННАЯ ВЕРСИЯ
-// ------------------------------------------------------------------------
+// Редактирование рецепта 
 app.get("/recipes/:id/edit", requireOwnerOrAdmin, async (req, res) => {
     const recipeId = req.params.id;
 
@@ -796,7 +765,6 @@ app.get("/recipes/:id/edit", requireOwnerOrAdmin, async (req, res) => {
     );
     if (!recipe) return res.send("Рецепт не найден");
 
-    // ИЗМЕНЕНИЕ: Добавляем WHERE active = TRUE
     const [categories] = await db.query("SELECT * FROM categories WHERE active = TRUE ORDER BY name ASC");
 
     const [selectedCats] = await db.query(
@@ -926,9 +894,7 @@ app.post("/recipes/:id/edit",
     }
 });
 
-// ------------------------------------------------------------------------
 // Удаление рецепта — новый правильный маршрут
-// ------------------------------------------------------------------------
 app.get("/recipes/:id/delete", requireOwnerOrAdmin, async (req, res) => {
     const id = req.params.id;
 
@@ -939,9 +905,7 @@ app.get("/recipes/:id/delete", requireOwnerOrAdmin, async (req, res) => {
     res.redirect("/recipes");
 });
 
-// -------------------------------------------------------------
 // МАРШРУТЫ ДЛЯ УВЕДОМЛЕНИЙ
-// -------------------------------------------------------------
 
 // Страница всех уведомлений
 app.get("/notifications", requireAuth, async (req, res) => {
@@ -951,7 +915,7 @@ app.get("/notifications", requireAuth, async (req, res) => {
         res.render("notifications", {
             title: "Уведомления",
             notifications,
-            notificationCount: 0 // На этой странице все уведомления считаются прочитанными
+            notificationCount: 0 
         });
     } catch (err) {
         console.error(err);
@@ -978,9 +942,8 @@ app.get("/api/notifications/count", requireAuth, async (req, res) => {
     const count = await getUnreadCount(req.session.user.id);
     res.json({ count });
 });
-// ------------------------------------------------------------------------
+
 // Админка пользователей
-// ------------------------------------------------------------------------
 app.get("/admin/users", requireAdmin, async (req, res) => {
     try {
         const [users] = await db.query(`
@@ -1004,12 +967,10 @@ app.get("/admin/users", requireAdmin, async (req, res) => {
     }
 });
 
-// ------------------------------------------------------------------------
-// Админка словарей (категории)
-// ------------------------------------------------------------------------
+
+// Админка категории
 app.get("/admin/dicts", requireAdmin, async (req, res) => {
     try {
-        // ИЗМЕНЕНИЕ: Убираем WHERE active = TRUE для админки
         const [categories] = await db.query("SELECT * FROM categories ORDER BY id DESC");
 
         res.render("admin_dicts", {
@@ -1024,7 +985,6 @@ app.get("/admin/dicts", requireAdmin, async (req, res) => {
 });
 
 // Добавление категории
-// Добавление категории
 app.post("/admin/dicts/category/add", requireAdmin, async (req, res) => {
     const { name } = req.body;
 
@@ -1038,7 +998,7 @@ app.post("/admin/dicts/category/add", requireAdmin, async (req, res) => {
 
 // Удаление категории
 app.get("/admin/dicts/category/delete/:id", requireAdmin, async (req, res) => {
-    const categoryId = req.params.id; // Получаем ID из URL
+    const categoryId = req.params.id; 
     
     try {
         // Проверяем, используется ли категория в рецептах
@@ -1227,7 +1187,7 @@ app.post("/admin/users/delete/:id", requireAdmin, async (req, res) => {
             users,
             message: `Пользователь ${user.login} и все его данные удалены!`
         });
-
+        
     } catch (err) {
         // Откатываем транзакцию при ошибке
         await db.query("ROLLBACK");
@@ -1242,9 +1202,7 @@ app.post("/admin/users/delete/:id", requireAdmin, async (req, res) => {
     }
 });
 
-// ---------------------------------------------------------------------------------------------------
 // Запуск сервера
-// ---------------------------------------------------------------------------------------------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Сервер запущен: http://localhost:${PORT}`);

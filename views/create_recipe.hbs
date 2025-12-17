@@ -8,12 +8,10 @@
 </div>
 
 <div class="recipe-form-container">
-    {{!-- Верхняя панель ошибок --}}
     <div id="formErrors" class="alert alert-danger d-none" role="alert"></div>
 
     <form id="recipeForm" action="/recipes/create" method="POST" enctype="multipart/form-data" style="max-width: 800px;">
         
-        {{!-- Основные поля --}}
         <div class="form-section">
             <h3 class="section-title"><i class="bi bi-card-heading"></i> Основная информация</h3>
             
@@ -37,7 +35,7 @@
                 </div>
             </div>
         </div>
-
+        
         {{!-- Категории --}}
         <div class="form-section">
             <h3 class="section-title"><i class="bi bi-tags"></i> Категория</h3>

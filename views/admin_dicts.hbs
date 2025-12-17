@@ -5,7 +5,6 @@
 <div class="row">
     <div class="col-md-8 mx-auto">
 
-        {{!-- Сообщения об ошибках и успехе --}}
         {{#if error}}
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 <i class="bi bi-exclamation-triangle-fill me-2"></i>
@@ -30,7 +29,6 @@
             </div>
             <div class="card-body">
 
-                {{!-- Форма добавления категории --}}
                 <div class="mb-4">
                     <h5 class="mb-3">Добавить новую категорию</h5>
                     <form action="/admin/dicts/category/add" method="POST" class="row g-3">
@@ -53,7 +51,6 @@
 
                 <hr>
 
-                {{!-- Список категорий --}}
                 <h5 class="mb-3">Список категорий</h5>
                 
                 {{#if categories.length}}

@@ -130,19 +130,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Обновление счетчика уведомлений
     async function updateNotificationCount() {
         try {
-            // Здесь можно обновить счетчик в навбаре
-            // В реальном приложении можно использовать WebSockets или периодический опрос
-            location.reload(); // Простейший вариант - перезагрузить страницу
+            location.reload(); 
         } catch (err) {
             console.error('Ошибка обновления счетчика:', err);
         }
     }
-    
-    // Функция показа тостов (можно заменить на свою реализацию)
     function showToast(message, type = 'info') {
-        // Используем Bootstrap Toast если есть, или простой alert
         if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
-            // Создаем toast
         } else {
             alert(message);
         }

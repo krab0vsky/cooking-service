@@ -229,9 +229,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 const data = await response.json();
                 
+                
                 if (data.success) {
-                    // Добавляем новый отзыв в список
-                    addNewReview(data.review);
+                // ПРОВЕРЯЕМ, ЕСТЬ ЛИ data.review
+                    if (data.review) {
+                        addNewReview(data.review);
+                    } else {
+                // Если сервер не вернул review, создаем из данных формы
+                        const text = document.getElementById('reviewText').value;
+                        const authorName = document.getElementById('author_name') 
+                            ? document.getElementById('author_name').value 
+                            : '{{user.name}}';
+        
+                        const tempReview = {
+                            id: 'temp-' + Date.now(),
+                            text: text,
+                            user_name: authorName,
+                            created_at: new Date().toISOString()
+                        };
+        
+                        addNewReview(tempReview);
+                    }
                     
                     // Очищаем форму
                     reviewForm.reset();

@@ -1,3 +1,4 @@
+<!-- views/partials/navbar.hbs -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container">
         <a class="navbar-brand" href="/recipes">Рецепты</a>
@@ -10,15 +11,21 @@
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 {{#if user}}
                     <li class="nav-item">
-                        <a class="nav-link" href="/recipes/create">Создать рецепт</a>
+                        <a class="nav-link" href="/recipes/create">
+                            <i class="bi bi-plus-circle"></i> Создать рецепт
+                        </a>
                     </li>
                     
                     {{#ifEquals user.role "admin"}}
                         <li class="nav-item">
-                            <a class="nav-link text-warning" href="/admin/users">Управление пользователями</a>
+                            <a class="nav-link text-warning" href="/admin/users">
+                                <i class="bi bi-people"></i> Пользователи
+                            </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-warning" href="/admin/dicts">Справочник</a>
+                            <a class="nav-link text-warning" href="/admin/dicts">
+                                <i class="bi bi-book"></i> Справочник
+                            </a>
                         </li>
                     {{/ifEquals}}
                 {{/if}}
@@ -26,6 +33,7 @@
             
             <ul class="navbar-nav">
                 {{#if user}}
+                    <!-- Уведомления -->
                     <li class="nav-item dropdown">
                         <a class="nav-link position-relative" href="#" id="notificationDropdown" 
                            role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -33,7 +41,6 @@
                             {{#if notificationCount}}
                                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                                     {{notificationCount}}
-                                    <span class="visually-hidden">непрочитанных уведомлений</span>
                                 </span>
                             {{/if}}
                         </a>
@@ -77,20 +84,47 @@
                         </ul>
                     </li>
                     
-                    <li class="nav-item d-flex align-items-center me-3">
-                        <span class="navbar-text">Привет, {{user.name}} ({{user.email}})</span>
-                    </li>
-                    
-                    <li class="nav-item">
-                        <a class="nav-link" href="/logout">Выйти</a>
+                    <!-- Профиль пользователя -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" 
+                           role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-person-circle"></i> {{user.name}}
+                        </a>
+                        
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li>
+                                <div class="dropdown-item-text">
+                                    <small class="text-muted">{{user.email}}</small>
+                                </div>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            
+                            <!-- НАСТРОЙКИ УВЕДОМЛЕНИЙ ДЛЯ ВСЕХ (включая админов) -->
+                            <li>
+                                <a class="dropdown-item" href="/profile/notifications">
+                                    <i class="bi bi-gear"></i> Настройки уведомлений
+                                </a>
+                            </li>
+                            
+                            <li>
+                                <a class="dropdown-item" href="/logout">
+                                    <i class="bi bi-box-arrow-right"></i> Выйти
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                     
                 {{else}}
+                    <!-- Для неавторизованных -->
                     <li class="nav-item">
-                        <a class="nav-link" href="/login">Войти</a>
+                        <a class="nav-link" href="/login">
+                            <i class="bi bi-box-arrow-in-right"></i> Войти
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/register">Регистрация</a>
+                        <a class="nav-link" href="/register">
+                            <i class="bi bi-person-plus"></i> Регистрация
+                        </a>
                     </li>
                 {{/if}}
             </ul>

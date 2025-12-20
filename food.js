@@ -7,6 +7,13 @@ import { fileURLToPath } from "url";
 import { engine } from "express-handlebars";
 import dotenv from "dotenv";
 import bcrypt from "bcrypt"; 
+import { 
+    verifyEmailConnection, 
+    sendNotification, 
+    EmailTypes,
+    setDatabaseConnection 
+} from './email.js';
+
 dotenv.config();
 
 
@@ -81,9 +88,11 @@ const db = await mysql.createPool({
     password: process.env.DB_PASS || "",
     database: process.env.DB_NAME || "recipes"
 });
-
 export default db;
 
+setDatabaseConnection(db);
+
+verifyEmailConnection();
 
 // УТИЛИТЫ ДЛЯ УВЕДОМЛЕНИЙ
 
@@ -382,6 +391,14 @@ app.post("/register", async (req, res) => {
             role: "user"
         };
 
+        await sendNotification(
+            result.insertId,
+            EmailTypes.WELCOME,
+            {
+                userName: name
+            }
+        );
+
         res.redirect("/recipes");
 
     } catch (err) {
@@ -658,7 +675,6 @@ app.post("/recipes/:id/rating", async (req, res) => {
         return res.status(403).send("Только для авторизованных");
     }
 
-    // автор не может оценивать себя
     const [[recipe]] = await db.query(
         "SELECT user_id, title FROM recipes WHERE id = ?",
         [recipeId]
@@ -674,20 +690,27 @@ app.post("/recipes/:id/rating", async (req, res) => {
             [recipeId, user.id, rating]
         );
         
-        // ⭐ СОЗДАНИЕ УВЕДОМЛЕНИЯ ДЛЯ АВТОРА РЕЦЕПТА
-        await createNotification(
-            recipe.user_id,
-            `Пользователь ${user.name} оценил ваш рецепт "${recipe.title}" на ${rating} ⭐`,
-            `/recipes/${recipeId}`
-        );
+        // ⭐ СОЗДАНИЕ УВЕДОМЛЕНИЯ ДЛЯ АВТОРА РЕЦЕПТА (в системе и по email)
+        if (recipe.user_id) {
+            await sendNotification(
+                recipe.user_id,
+                EmailTypes.NEW_RATING,
+                {
+                    userName: user.name,
+                    recipeTitle: recipe.title,
+                    rating: rating,
+                    link: `/recipes/${recipeId}`
+                }
+            );
+        }
 
     } catch (err) {
-        // если уже ставил
         return res.status(400).send("Вы уже оценили этот рецепт");
     }
 
     res.redirect(`/recipes/${recipeId}`);
 });
+
 
 // МАРШРУТ ДЛЯ AJAX ОТЗЫВОВ
 app.post("/recipes/:id/review", async (req, res) => {
@@ -716,42 +739,46 @@ app.post("/recipes/:id/review", async (req, res) => {
             ]
         );
 
-        const reviewId = result.insertId;
-
-        const [[newReview]] = await db.query(
-            `SELECT r.*, u.name as user_name 
-             FROM reviews r
-             LEFT JOIN users u ON r.user_id = u.id
-             WHERE r.id = ?`,
-            [reviewId]
-        );
-
-        // СОЗДАНИЕ УВЕДОМЛЕНИЯ ДЛЯ АВТОРА РЕЦЕПТА (если отзыв не от автора)
-        if (recipe.user_id !== (user ? user.id : null)) {
-            await createNotification(
+        // СОЗДАНИЕ УВЕДОМЛЕНИЯ ДЛЯ АВТОРА РЕЦЕПТА (в системе и по email)
+        if (recipe.user_id && recipe.user_id !== (user ? user.id : null)) {
+            await sendNotification(
                 recipe.user_id,
-                `Пользователь ${reviewerName} оставил отзыв на ваш рецепт "${recipe.title}"`,
-                `/recipes/${recipeId}`
+                EmailTypes.NEW_REVIEW,
+                {
+                    userName: reviewerName,
+                    recipeTitle: recipe.title,
+                    reviewText: text.length > 100 ? text.substring(0, 100) + '...' : text,
+                    link: `/recipes/${recipeId}`
+                }
             );
         }
 
-        // Отправляем JSON вместо редиректа
-        res.json({
-            success: true,
-            review: {
-                id: newReview.id,
-                text: newReview.text,
-                created_at: newReview.created_at,
-                user_name: newReview.user_name || newReview.author_name || 'Аноним'
+        // Для ответов на отзывы - уведомляем автора родительского отзыва
+        if (parent_id) {
+            const [[parentReview]] = await db.query(
+                "SELECT user_id, author_name FROM reviews WHERE id = ?",
+                [parent_id]
+            );
+            
+            if (parentReview.user_id && parentReview.user_id !== (user ? user.id : null)) {
+                await sendNotification(
+                    parentReview.user_id,
+                    EmailTypes.NEW_REVIEW,
+                    {
+                        userName: reviewerName,
+                        recipeTitle: recipe.title,
+                        reviewText: text.length > 100 ? text.substring(0, 100) + '...' : text,
+                        link: `/recipes/${recipeId}`
+                    }
+                );
             }
-        });
+        }
+
+        res.json({ success: true });
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({
-            success: false,
-            error: "Ошибка при добавлении отзыва"
-        });
+        res.status(500).json({ success: false, error: "Ошибка при добавлении отзыва" });
     }
 });
 
@@ -943,6 +970,43 @@ app.get("/api/notifications/count", requireAuth, async (req, res) => {
     res.json({ count });
 });
 
+app.get("/profile/notifications", requireAuth, async (req, res) => {
+    try {
+        const notifications = await getUserNotifications(req.session.user.id, 50);
+        
+        // Получаем настройки уведомлений пользователя
+        const [[userSettings]] = await db.query(
+            "SELECT email_notifications FROM users WHERE id = ?",
+            [req.session.user.id]
+        );
+        
+        res.render("notification_settings", {
+            title: "Настройки уведомлений",
+            notifications,
+            emailNotifications: userSettings?.email_notifications || 1
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Ошибка при загрузке настроек");
+    }
+});
+
+app.post("/profile/notifications/email", requireAuth, async (req, res) => {
+    const { enable } = req.body;
+    
+    try {
+        await db.query(
+            "UPDATE users SET email_notifications = ? WHERE id = ?",
+            [enable === '1' ? 1 : 0, req.session.user.id]
+        );
+        
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, error: "Ошибка при обновлении настроек" });
+    }
+});
+
 // Админка пользователей
 app.get("/admin/users", requireAdmin, async (req, res) => {
     try {
@@ -1048,7 +1112,6 @@ app.post("/admin/users/ban/:id", requireAdmin, async (req, res) => {
     const userId = req.params.id;
     const { ban_reason } = req.body;
 
-    // Запрещаем банить себя
     if (req.session.user.id == userId) {
         const [users] = await db.query("SELECT * FROM users ORDER BY id ASC");
         return res.render("admin_users", {
@@ -1059,35 +1122,29 @@ app.post("/admin/users/ban/:id", requireAdmin, async (req, res) => {
     }
 
     try {
-        // Баним пользователя
         await db.query(
             "UPDATE users SET is_banned = TRUE, ban_reason = ?, banned_at = NOW() WHERE id = ?",
             [ban_reason || "Без указания причины", userId]
         );
 
-        // Делаем рецепты забаненного пользователя анонимными
-        await db.query(
-            "UPDATE recipes SET user_id = NULL WHERE user_id = ?",
-            [userId]
-        );
+        await db.query("UPDATE recipes SET user_id = NULL WHERE user_id = ?", [userId]);
+        await db.query("DELETE FROM ratings WHERE user_id = ?", [userId]);
+        await db.query("UPDATE reviews SET user_id = NULL WHERE user_id = ?", [userId]);
 
-        // Удаляем оценки забаненного пользователя
-        await db.query(
-            "DELETE FROM ratings WHERE user_id = ?",
-            [userId]
-        );
-
-        // Делаем отзывы анонимными
-        await db.query(
-            "UPDATE reviews SET user_id = NULL WHERE user_id = ?",
-            [userId]
+        // ОТПРАВКА EMAIL-УВЕДОМЛЕНИЯ О БАНЕ
+        await sendNotification(
+            userId,
+            EmailTypes.ADMIN_BAN,
+            {
+                reason: ban_reason || "Без указания причины"
+            }
         );
 
         const [users] = await db.query("SELECT * FROM users ORDER BY id ASC");
         res.render("admin_users", {
             title: "Пользователи",
             users,
-            message: `Пользователь забанен. Его рецепты сохранены как анонимные.`
+            message: `Пользователь забанен. Уведомление отправлено на email.`
         });
 
     } catch (err) {
@@ -1096,12 +1153,11 @@ app.post("/admin/users/ban/:id", requireAdmin, async (req, res) => {
         res.render("admin_users", {
             title: "Пользователи",
             users,
-            error: "Ошибка при бане пользователя: " + err.message
+            error: "Ошибка при бане пользователя"
         });
     }
 });
 
-// Разбан пользователя
 app.post("/admin/users/unban/:id", requireAdmin, async (req, res) => {
     const userId = req.params.id;
 
@@ -1111,11 +1167,18 @@ app.post("/admin/users/unban/:id", requireAdmin, async (req, res) => {
             [userId]
         );
 
+        // ОТПРАВКА EMAIL-УВЕДОМЛЕНИЯ О РАЗБАНЕ
+        await sendNotification(
+            userId,
+            EmailTypes.ADMIN_UNBAN,
+            {}
+        );
+
         const [users] = await db.query("SELECT * FROM users ORDER BY id ASC");
         res.render("admin_users", {
             title: "Пользователи",
             users,
-            message: "Пользователь разбанен."
+            message: "Пользователь разбанен. Уведомление отправлено на email."
         });
 
     } catch (err) {

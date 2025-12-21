@@ -12,6 +12,7 @@
     {{/if}}
 
     <form id="registerForm" action="/register" method="POST">
+        <input type="hidden" name="_csrf" value="{{csrfToken}}">
 
         <div class="mb-3">
             <label class="form-label">Имя</label>

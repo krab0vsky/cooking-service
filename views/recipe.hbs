@@ -106,6 +106,7 @@
       {{#unless userRating}}
         {{#unless canEdit}}
           <form method="POST" action="/recipes/{{recipe.id}}/rating" class="review-form">
+            <input type="hidden" name="_csrf" value="{{csrfToken}}">
             <label>Ваша оценка</label>
             <select name="rating" required>
               <option value="">Выберите</option>
@@ -131,6 +132,7 @@
       <h3>Оставить отзыв</h3>
     
       <form id="reviewForm" method="POST" class="review-form">
+          <input type="hidden" name="_csrf" value="{{csrfToken}}">
           {{#unless user}}
               <input 
                   type="text" 
@@ -201,41 +203,38 @@ document.addEventListener('DOMContentLoaded', function() {
         reviewForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            // Получаем данные формы
             const formData = new FormData(this);
             const recipeId = window.location.pathname.split('/')[2];
+
+            // 🔐 CSRF token из формы
+            const csrfToken = formData.get('_csrf');
             
-            // Валидация
             const text = document.getElementById('reviewText').value.trim();
             if (!text) {
                 showError('Введите текст отзыва');
                 return;
             }
             
-            // Показываем загрузку
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Отправка...';
             reviewError.style.display = 'none';
             
             try {
-                // Отправляем AJAX запрос
                 const response = await fetch(`/recipes/${recipeId}/review`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
+                        'CSRF-Token': csrfToken // ✅ ДОБАВЛЕНО
                     },
                     body: new URLSearchParams(formData)
                 });
                 
                 const data = await response.json();
                 
-                
                 if (data.success) {
-                // ПРОВЕРЯЕМ, ЕСТЬ ЛИ data.review
                     if (data.review) {
                         addNewReview(data.review);
                     } else {
-                // Если сервер не вернул review, создаем из данных формы
                         const text = document.getElementById('reviewText').value;
                         const authorName = document.getElementById('author_name') 
                             ? document.getElementById('author_name').value 
@@ -251,13 +250,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         addNewReview(tempReview);
                     }
                     
-                    // Очищаем форму
                     reviewForm.reset();
-                    
-                    // Показываем успешное сообщение
                     showSuccessMessage('Отзыв успешно добавлен!');
-                    
-                    // Обновляем счетчик
                     updateReviewsCount();
                 } else {
                     showError(data.error || 'Ошибка при отправке отзыва');
@@ -267,21 +261,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Ошибка:', error);
                 showError('Ошибка сети. Проверьте подключение к интернету');
             } finally {
-                // Восстанавливаем кнопку
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Отправить';
             }
         });
     }
     
-    // Функция добавления нового отзыва
     function addNewReview(review) {
-        // Скрываем сообщение "нет отзывов"
         if (noReviews) {
             noReviews.style.display = 'none';
         }
         
-        // Создаем HTML для нового отзыва
         const reviewHTML = `
             <div class="review-card mb-3" id="review-${review.id}">
                 <div class="review-header">
@@ -292,14 +282,12 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         
-        // Добавляем отзыв в начало списка
         if (reviewsList.firstChild) {
             reviewsList.insertAdjacentHTML('afterbegin', reviewHTML);
         } else {
             reviewsList.innerHTML = reviewHTML;
         }
         
-        // Плавное появление нового отзыва
         const newReview = document.getElementById(`review-${review.id}`);
         newReview.style.opacity = '0';
         newReview.style.transform = 'translateY(-10px)';
@@ -311,48 +299,35 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 10);
     }
     
-    // Функция обновления счетчика отзывов
     function updateReviewsCount() {
         const reviews = document.querySelectorAll('.review-card');
-        const count = reviews.length;
-        
         if (reviewsCount) {
-            reviewsCount.textContent = `(${count})`;
+            reviewsCount.textContent = `(${reviews.length})`;
         }
     }
     
-    // Функция показа ошибки
     function showError(message) {
         reviewError.textContent = message;
         reviewError.style.display = 'block';
-        
-        // Автоматически скрываем через 5 секунд
         setTimeout(() => {
             reviewError.style.display = 'none';
         }, 5000);
     }
     
-    // Функция показа успешного сообщения
     function showSuccessMessage(message) {
-        // Создаем временное сообщение
         const successDiv = document.createElement('div');
         successDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
         successDiv.innerHTML = `
             ${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
-        
-        // Вставляем перед формой
         reviewForm.parentNode.insertBefore(successDiv, reviewForm);
-        
-        // Автоматически скрываем через 3 секунды
         setTimeout(() => {
             const bsAlert = new bootstrap.Alert(successDiv);
             bsAlert.close();
         }, 3000);
     }
     
-    // Функция форматирования даты для отображения
     function formatDateForDisplay(dateString) {
         if (!dateString) return 'только что';
         
@@ -369,7 +344,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (diffHour < 24) return `${diffHour} ч. назад`;
         if (diffDay < 7) return `${diffDay} дн. назад`;
         
-        // Для старых дат используем нормальный формат
         return date.toLocaleDateString('ru-RU', {
             day: '2-digit',
             month: '2-digit',

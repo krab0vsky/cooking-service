@@ -1,4 +1,5 @@
 import express from "express";
+import csrf from "csurf";
 import session from "express-session";
 import mysql from "mysql2/promise";
 import path from "path";
@@ -21,7 +22,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 
-
 const app = express();
 
 app.use(express.urlencoded({ extended: true }));
@@ -31,14 +31,25 @@ app.use(express.static(path.join(__dirname, "public")));
 
 app.use(
     session({
+        name: "session_id", // красивое имя cookie
         secret: process.env.SESSION_SECRET || "secret123",
         resave: false,
-        saveUninitialized: false
+        saveUninitialized: false,
+        cookie: {
+            httpOnly: true,      
+            sameSite: "lax",     
+            secure: false,       
+            maxAge: 1000 * 60 * 60 * 24 
+        }
     })
 );
 
+const csrfProtection = csrf();
+app.use(csrfProtection);
+
 app.use((req, res, next) => {
     res.locals.user = req.session.user || null;
+    res.locals.csrfToken = req.csrfToken(); 
     next();
 });
 
@@ -88,6 +99,7 @@ const db = await mysql.createPool({
     password: process.env.DB_PASS || "",
     database: process.env.DB_NAME || "recipes"
 });
+
 export default db;
 
 setDatabaseConnection(db);
@@ -182,7 +194,6 @@ const upload = multer({
 
 
 // MIDDLEWARE — доступ
-
 const requireAuth = (req, res, next) => {
     if (!req.session.user) {
         return res.redirect("/login");
@@ -577,7 +588,6 @@ app.post(
 
 
 // Просмотр рецепта
-
 app.get("/recipes/:id", async (req, res) => {
     const recipeId = req.params.id;
     const user = req.session.user || null;
@@ -710,7 +720,6 @@ app.post("/recipes/:id/rating", async (req, res) => {
 
     res.redirect(`/recipes/${recipeId}`);
 });
-
 
 // МАРШРУТ ДЛЯ AJAX ОТЗЫВОВ
 app.post("/recipes/:id/review", async (req, res) => {
@@ -1264,6 +1273,17 @@ app.post("/admin/users/delete/:id", requireAdmin, async (req, res) => {
         });
     }
 });
+
+app.use((err, req, res, next) => {
+    if (err.code === "EBADCSRFTOKEN") {
+        return res.status(403).render("error", {
+            title: "Ошибка безопасности",
+            message: "Сессия устарела или неверный CSRF-токен. Обновите страницу."
+        });
+    }
+    next(err);
+});
+
 
 // Запуск сервера
 const PORT = process.env.PORT || 3000;

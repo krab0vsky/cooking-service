@@ -11,6 +11,7 @@
     <div id="formErrors" class="alert alert-danger d-none" role="alert"></div>
 
     <form id="recipeForm" action="/recipes/create" method="POST" enctype="multipart/form-data" style="max-width: 800px;">
+        <input type="hidden" name="_csrf" value="{{csrfToken}}">
         
         <div class="form-section">
             <h3 class="section-title"><i class="bi bi-card-heading"></i> Основная информация</h3>

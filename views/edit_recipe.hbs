@@ -12,6 +12,7 @@
     <div id="formErrors" class="alert alert-danger d-none" role="alert"></div>
 
     <form id="recipeForm" action="/recipes/{{recipe.id}}/edit" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf" value="{{csrfToken}}">
         
         {{!-- Основные поля --}}
         <div class="form-section">

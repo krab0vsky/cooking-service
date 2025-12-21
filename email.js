@@ -17,10 +17,10 @@ const transporter = nodemailer.createTransport({
 export async function verifyEmailConnection() {
     try {
         await transporter.verify();
-        console.log('✅ Email server подключен');
+        console.log('Email server подключен');
         return true;
     } catch (error) {
-        console.error('❌ Ошибка подключения к email:', error);
+        console.error('Ошибка подключения к email:', error);
         return false;
     }
 }
@@ -62,7 +62,7 @@ const emailTemplate = (content) => `
 export async function sendEmailNotification(to, subject, content, isHtml = true) {
     try {
         if (!to || !subject || !content) {
-            console.error('❌ Не указаны параметры для отправки email');
+            console.error(' Не указаны параметры для отправки email');
             return false;
         }
 
@@ -75,10 +75,10 @@ export async function sendEmailNotification(to, subject, content, isHtml = true)
         };
 
         const info = await transporter.sendMail(mailOptions);
-        console.log(`✅ Email отправлен: ${info.messageId}`);
+        console.log(`Email отправлен: ${info.messageId}`);
         return true;
     } catch (error) {
-        console.error('❌ Ошибка отправки email:', error);
+        console.error('Ошибка отправки email:', error);
         return false;
     }
 }
